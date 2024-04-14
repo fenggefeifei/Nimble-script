@@ -5,6 +5,55 @@ green='\033[0;32m'
 red='\033[0;31m'
 clear='\033[0m'
 
+# Function to display a spinner
+spinner() {
+    local pid=$1
+    local delay=0.75
+    local spinstr='|/-\'
+    while ps -p $pid > /dev/null; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
+}
+
+# Inform the user that updates are in progress
+echo -e "${green}Updating system and installing dependencies...${clear}"
+
+# Update system and install necessary dependencies
+sudo apt-get update > /dev/null
+
+# Install tmux with spinner
+echo -ne "\rInstalling tmux "
+(sudo apt-get install tmux > /dev/null 2>&1) &
+spinner $!
+echo ""
+
+# Install build-essential with spinner
+echo -ne "\rInstalling build-essential "
+(sudo apt-get install build-essential -y > /dev/null 2>&1) &
+spinner $!
+echo ""
+
+# Install make with spinner
+echo -ne "\rInstalling make "
+(sudo apt-get install make -y > /dev/null 2>&1) &
+spinner $!
+echo ""
+
+echo "Installation completed successfully."
+
+# Install python3 env with spinner
+echo -ne "\rInstalling python3 env "
+(sudo apt-get install python3-venv -y > /dev/null 2>&1) &
+spinner $!
+echo ""
+
+echo "Installation completed successfully."
+
 # Function to check if Go version 1.22 is installed
 check_go_version() {
     if ! command -v go &> /dev/null; then
@@ -95,12 +144,18 @@ install_miner() {
     # Check if the miner has already been installed
     if [ ! -f "$HOME/go/bin/nimble-miner" ]; then
         echo -e "${green}Cloning into miner and compiling...${clear}"
+        # Remove the directory if it exists
+        if [ -d "$HOME/nimble/nimble-miner-public" ]; then
+            echo -e "${green}Removing existing nimble-miner-public directory...${clear}"
+            rm -rf "$HOME/nimble/nimble-miner-public" || { echo -e "${red}Failed to remove existing directory. Returning to options menu.${clear}"; sleep 3; return; }
+        fi
         # Git clone into miner and compile
         mkdir -p "$HOME/nimble" && cd "$HOME/nimble" || { echo -e "${red}Failed to create directory. Returning to options menu.${clear}"; sleep 3; return; }
         git clone https://github.com/nimble-technology/nimble-miner-public.git > /dev/null || { echo -e "${red}Failed to clone repository. Returning to options menu.${clear}"; sleep 3; return; }
         cd nimble-miner-public || { echo -e "${red}Failed to change directory. Returning to options menu.${clear}"; sleep 3; return; }
         git pull || { echo -e "${red}Failed to pull changes. Returning to options menu.${clear}"; sleep 3; return; }
         make install || { echo -e "${red}Failed to install miner. Returning to options menu.${clear}"; sleep 3; return; }
+        source ./nimenv_localminers/bin/activate
     fi
 
     # Ask user to enter a sub address to mine to
@@ -115,6 +170,7 @@ install_miner() {
     echo -e "${green}Press any key to return to the options menu.${clear}"
     read -n 1 -s -r -p ""
 }
+
 
 # Function to run the wallet
 run_wallet() {
